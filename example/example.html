@@ -1,0 +1,89 @@
+<head>
+	<title>Locker Demo</title>
+</head>
+<body>
+	{{>LockerDemo}}	
+</body>
+
+<template name="LockerDemo">
+	<h1>Locker Demo</h1>
+
+	<table>
+		<tr>
+			<td><strong>Connection Id:</strong></td>
+			<td><code>{{ConnectionId}}</code></td>
+		</tr>
+		<tr>
+			<td><strong>Current User:</strong></td>
+			<td><code>{{CurrentUser.username}}</code></td>
+		</tr>
+		<tr>
+			<td><strong>Current User Id:</strong></td>
+			<td><code>{{CurrentUser._id}}</code></td>
+		</tr>
+	</table>
+
+	<h2>Lock Data</h2>
+
+	<div>
+		<table>
+			<tr>
+				<td><strong>Lock Name:</strong></td>
+				<td><input class="lock-name" type="text" value="key"></td>
+			</tr>
+			<tr>
+				<td><strong>Meta:</strong></td>
+				<td><input class="lock-meta" type="text"></td>
+			</tr>
+		</table>
+		<p>
+			<button class="acquire-lock-user">Acquire Lock (by User Id)</button>
+			<button class="acquire-lock-connection">Acquire Lock (by Connection Id)</button>
+			<br/>
+			<button class="release-lock-user">Release Lock (by User Id)</button>
+			<button class="release-lock-connection">Release Lock (by Connection Id)</button>
+			<br/>
+			<button class="release-all">Release All Locks</button>
+		</p>
+
+		<p><em>Note: Locks have a 10 sec time to live.</em></p>
+		<p><em>Note: Open in a different window to establish a different connection.</em></p>
+		<p><em>Note: Open in another browser/incognito mode/private mode to be able to sign in as a different user.</em></p>
+	</div>
+
+	{{#each AllLockData}}
+		<h3>{{name}}</h3>
+		<table border=1>
+			<thead>
+				<tr>
+					<th><code>lockerId</code></th>
+					<th><code>lockName</code></th>
+					<th><code>expiryMarker</code></th>
+					<th><code>data</code></th>
+				</tr>
+			</thead>
+			<tbody>
+				{{#each data}}
+					<tr>
+						<td>{{lockerId}}</td>
+						<td>{{lockName}}</td>
+						<td>{{expiryMarker}}</td>
+						<td>{{showMetadata this}}</td>
+					</tr>
+				{{/each}}
+			</tbody>
+		</table>
+		{{#each data}}
+
+		{{/each}}
+	{{/each}}
+	
+	<h2>Users</h2>
+	<ul>
+		{{#each MeteorUsers}}
+			<li>
+				<button class="login" data-username={{username}} data-id={{_id}}>Login As {{username}}</button> _id: <code>{{_id}}</code>
+			</li>
+		{{/each}}
+	</ul>
+</template>
