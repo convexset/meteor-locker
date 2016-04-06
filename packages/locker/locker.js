@@ -1,9 +1,7 @@
+/* global DDP: true */
 /* global Locker: true */
 /* global PackageUtilities: true */
-/* global Npm: true */
 
-var Fiber = Npm.require('fibers');
-	
 Locker = (function() {
 	var _lf = function LockerFactory() {};
 	var LF = new _lf();
@@ -93,6 +91,14 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		}
 	}
 
+	PackageUtilities.addImmutablePropertyFunction(L, "getUserIdAndConnectionId", function getUserIdAndConnectionId() {
+		var context = getContext();
+		return {
+			userId: context && context.userId,
+			connectionId: context && context.connection && context.connection.id
+		};
+	});
+
 	PackageUtilities.addImmutablePropertyFunction(L, "getLockerId", function getLockerId() {
 		var lockerId = contextToLockerIdFunction(getContext());
 		if (!!lockerId) {
@@ -109,6 +115,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	// Lock Name Stuff
 	//////////////////////////////////////////////////////////////////////
 	var ALPHA_NUMERIC_PLUS = [].concat(_.range(48, 48 + 10), _.range(65, 65 + 26), _.range(97, 97 + 26)).map(x => String.fromCharCode(x)).concat(["_", "-"]).join("");
+
 	function isValidLockNameEntry(name) {
 		for (var i = 0; i < name.length; i++) {
 			if (ALPHA_NUMERIC_PLUS.indexOf(name[i]) === -1) {
@@ -179,12 +186,9 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			}
 		});
 
-		var context = getContext();
 		var updater = _.extend({
 			expiryMarker: expiryMarker,
-			userId: context && context.userId,
-			connectionId: context && context.connection && context.connection.id
-		}, metadata);
+		}, L.getUserIdAndConnectionId(), metadata);
 
 		var ret;
 		try {
@@ -227,13 +231,13 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			};
 			L.releaseLock(name);
 			return ret;
-		} catch(e) {
+		} catch (e) {
 			return {
 				lockAcquired: false,
 				outcome: options.lockNotAcquiredCallback.call(options.context)
 			};
-		};
-	});	
+		}
+	});
 	//////////////////////////////////////////////////////////////////////
 
 
@@ -247,6 +251,19 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			lockName: name,
 			userId: Meteor.userId()
 		});
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "_releaseAllOwnLocks", function _releaseAllOwnLocks() {
+		LOG('[_releaseAllOwnLocks]');
+		return !!collection.remove({
+			userId: Meteor.userId()
+		});
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "_releaseAllOwnCurrentConnectionLocks", function _releaseAllCurrentConnectionLocks() {
+		LOG('[_releaseAllOwnCurrentConnectionLocks]');
+		var context = getContext();
+		return !!collection.remove(L.getUserIdAndConnectionId());
 	});
 
 	PackageUtilities.addImmutablePropertyFunction(L, "_releaseLockById", function _releaseLockById(_id) {
