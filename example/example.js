@@ -225,8 +225,12 @@ if (Meteor.isClient) {
 		'click button.release-all': function() {
 			Meteor.call("release-all-locks", reportResult);
 		},
-		'click button.one-at-a-time-method-connection': function() {
-			Meteor.call("one-at-a-time-method-connection", reportResult);
+		'click button.one-at-a-time-method-connection': function(event) {
+			$(event.target).attr('disabled', true);
+			Meteor.call("one-at-a-time-method-connection", function(err, res) {
+				reportResult(err, res);
+				$(event.target).removeAttr('disabled');
+			});
 		}
 	});
 
