@@ -1,6 +1,9 @@
 /* global Locker: true */
 /* global PackageUtilities: true */
+/* global Npm: true */
 
+var Fiber = Npm.require('fibers');
+	
 Locker = (function() {
 	var _lf = function LockerFactory() {};
 	var LF = new _lf();
@@ -69,30 +72,32 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		unique: true
 	});
 	PackageUtilities.addImmutablePropertyValue(L, "_collection", collection);
+	INFO("Preparing collection...");
 
 
-	// do some dynamic scoping stuff
-	var _currMethodContext = null;
-	var _currLockerId = null;
-	PackageUtilities.addImmutablePropertyFunction(L, "wrap", function wrap(fn) {
-		return function() {
-			_currMethodContext = this;
-			_currLockerId = contextToLockerIdFunction(_currMethodContext);
-			INFO("Current Method Context:", _currMethodContext);
-			INFO("Current Locker Id:", _currLockerId);
-			var args = _.toArray(arguments);
-			var ret = fn.apply(this, args);
-			_currMethodContext = null;
-			_currLockerId = null;
-			return ret;
-		};
+	// getLockerId via context
+	function getContext() {
+		var context = DDP._CurrentInvocation.getOrNullIfOutsideFiber();
+		if (!!context) {
+			return context;
+		} else {
+			ERROR('[invalid-calling-context] Context only available within a Fiber. (e.g.: within Meteor Method invocations.)');
+			throw new Meteor.Error('invalid-calling-context', 'Context only available within a Fiber. (e.g.: within Meteor Method invocations.)');
+		}
+	}
+	PackageUtilities.addImmutablePropertyFunction(L, "getLockerId", function getLockerId() {
+		var lockerId = contextToLockerIdFunction(getContext());
+		if (!!lockerId) {
+			return lockerId;
+		} else {
+			ERROR('[invalid-locker-id] Blank, null, undefined or otherwise falsey lockerIds forbidden.');
+			throw new Meteor.Error('invalid-locker-id', 'Blank, null, undefined or otherwise falsey lockerIds forbidden.');
+		}
 	});
-	PackageUtilities.addPropertyGetter(L, "currMethodContext", () => _currMethodContext);
-	PackageUtilities.addPropertyGetter(L, "currLockerId", () => _currLockerId);
 
 
 	// Lock Name Stuff
-	var ALPHA_NUMERIC_PLUS = [].concat(_.range(48,48+10), _.range(65,65+26), _.range(97,97+26)).map(x => String.fromCharCode(x)).concat(["_", "-"]).join("");
+	var ALPHA_NUMERIC_PLUS = [].concat(_.range(48, 48 + 10), _.range(65, 65 + 26), _.range(97, 97 + 26)).map(x => String.fromCharCode(x)).concat(["_", "-"]).join("");
 	function isValidLockNameEntry(name) {
 		for (var i = 0; i < name.length; i++) {
 			if (ALPHA_NUMERIC_PLUS.indexOf(name[i]) === -1) {
@@ -101,12 +106,15 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		}
 		return true;
 	}
+
 	function toLockName(name) {
 		if (typeof name === "string") {
 			if (name === "") {
+				ERROR('[invalid-lock-name] Empty strings not allowed.');
 				throw new Meteor.Error('invalid-lock-name', 'Empty strings not allowed.');
 			}
 			if (!isValidLockNameEntry(name)) {
+				ERROR('[invalid-lock-name] Only alpha-numeric characters, underscores and dashes allowed.');
 				throw new Meteor.Error('invalid-lock-name', 'Only alpha-numeric characters, underscores and dashes allowed.');
 			}
 			return name;
@@ -114,11 +122,13 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		if (_.isArray(name)) {
 			name.forEach(function(nameComponent) {
 				if (!isValidLockNameEntry(nameComponent)) {
+					ERROR('[invalid-lock-name-component] Only alpha-numeric characters, underscores and dashes allowed.');
 					throw new Meteor.Error('invalid-lock-name-component', 'Only alpha-numeric characters, underscores and dashes allowed.');
 				}
 			});
 			return name.join(':');
 		}
+		ERROR('[invalid-lock-name] Only strings containing alpha-numeric characters, underscores and dashes or arrays of such strings allowed.');
 		throw new Meteor.Error('invalid-lock-name');
 	}
 
@@ -126,31 +136,29 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	// Locking Stuff Proper
 	PackageUtilities.addImmutablePropertyFunction(L, "releaseLock", function releaseLock(name) {
 		name = toLockName(name);
-		if (!_currLockerId) {
-			throw new Meteor.Error('locker-id-undefined', 'Is your Meteor Method \"wrap\"\'ed?');
-		}
-
+		var currLockerId = L.getLockerId();
+		LOG('[releaseLock|' + currLockerId + '] ' + name);
 		return !!collection.remove({
 			lockName: name,
-			lockerId: _currLockerId
+			lockerId: currLockerId
 		});
 	});
 	var INVALID_META_DATA_KEYS = ['lockName', 'lockerId', 'expiryMarker'];
 	PackageUtilities.addImmutablePropertyFunction(L, "acquireLock", function acquireLock(name, metadata = {}, expiryInSec = null) {
 		name = toLockName(name);
-		if (!_currLockerId) {
-			throw new Meteor.Error('locker-id-undefined', 'Is your Meteor Method \"wrap\"\'ed?');
-		}
+		var currLockerId = L.getLockerId();
+		LOG('[acquireLock|' + currLockerId + '] ' + name, metadata, expiryInSec);
 		if (typeof metadata !== "object") {
 			throw new Meteor.Error('metadata-should-be-an-object');
 		}
 		if ((typeof expiryInSec !== "number") || !Number.isFinite(expiryInSec) || (expiryInSec > defaultExpiryInSec)) {
 			expiryInSec = defaultExpiryInSec;
 		}
-		var expiryMarker = new Date((new Date()).getTime() - (defaultExpiryInSec - expiryInSec) * 1000)
+		var expiryMarker = new Date((new Date()).getTime() - (defaultExpiryInSec - expiryInSec) * 1000);
 
 		INVALID_META_DATA_KEYS.forEach(function(key) {
 			if (metadata.hasOwnProperty(key)) {
+				WARN('[metadata-with-invalid-field] ' + key);
 				delete metadata[key];
 			}
 		});
@@ -163,12 +171,13 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		try {
 			ret = collection.upsert({
 				lockName: name,
-				lockerId: _currLockerId
+				lockerId: currLockerId
 			}, {
 				$set: updater
 			});
 		} catch (e) {
 			if (e.name === 'MongoError' && e.code === 11000) {
+				WARN('[failed-to-acquire-lock] lockName=' + name + ', lockerId: ' + currLockerId);
 				throw new Meteor.Error('failed-to-acquire-lock');
 			} else {
 				throw e;
@@ -177,13 +186,15 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		return (!!ret && !!ret.numberAffected);
 	});
 	PackageUtilities.addImmutablePropertyFunction(L, "_releaseLockById", function _releaseLockById(_id) {
+		LOG('[_releaseLockById] ' + _id);
 		return !!collection.remove({
 			_id: _id
 		});
 	});
 	PackageUtilities.addImmutablePropertyFunction(L, "_releaseAllLocks", function _releaseAllLocks() {
+		LOG('[_releaseAllLocks]');
 		return collection.remove({});
 	});
 
 	return L;
-};
+}

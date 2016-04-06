@@ -14,6 +14,7 @@ Package.onUse(function(api) {
 		[
 			'ecmascript', 'underscore', 'ejson',
 			'accounts-base',
+			'ddp',
 			'convexset:package-utils@0.1.13',
 		],
 		'server');

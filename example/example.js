@@ -1,11 +1,20 @@
+/* global Random: true */
+/* global Locker: true */
+/* global UserIdLocker: true */
+/* global ConnectionIdLocker: true */
+/* global SomeOtherCollection: true */
+
 if (Meteor.isServer) {
-	UserIdLocker = Locker.makeUserIdLocker('user-id', 'convexset_locker__userId', 10);
+	UserIdLocker = Locker.makeUserIdLocker('user-id', 'convexset_locker__userId', 30);
 	UserIdLocker.DEBUG_MODE = true;
-	ConnectionIdLocker = Locker.makeConnectionIdLocker('user-id', 'convexset_locker__connectionId', 10);
+	ConnectionIdLocker = Locker.makeConnectionIdLocker('user-id', 'convexset_locker__connectionId', 30);
 	ConnectionIdLocker.DEBUG_MODE = true;
+
+	SomeOtherCollection = new Meteor.Collection('other-thing');
 
 	Meteor.startup(function() {
 		Meteor.users.remove({});
+		SomeOtherCollection.remove({});
 		_.times(5, function(idx) {
 			Accounts.createUser({
 				username: "user" + (idx + 1),
@@ -15,47 +24,67 @@ if (Meteor.isServer) {
 		});
 	});
 
-	function tester(name, locker) {
-		return function() {
-			var ret = {
-				currMethodContext: locker.currMethodContext,
-				currLockerId: locker.currLockerId
-			};
-			console.log('["test-user-id"]', ret);
-			return ret;
-		}
-	}
 
 	Meteor.methods({
 		"release-all-locks": function() {
 			UserIdLocker._releaseAllLocks();
 			ConnectionIdLocker._releaseAllLocks();
 		},
-		"test-user-id": UserIdLocker.wrap(tester("test-user-id", UserIdLocker)),
-		"test-connection-id": ConnectionIdLocker.wrap(tester("test-connection-id", ConnectionIdLocker)),
-		"acquire-lock-user": UserIdLocker.wrap(function(name, metadata) {
+		"acquire-lock-user": function(name, metadata) {
 			return UserIdLocker.acquireLock(name, metadata);
-		}),
-		"acquire-lock-connection": ConnectionIdLocker.wrap(function(name, metadata) {
+		},
+		"acquire-lock-connection": function(name, metadata) {
 			return ConnectionIdLocker.acquireLock(name, metadata);
-		}),
-		"release-lock-user": UserIdLocker.wrap(function(name) {
+		},
+		"release-lock-user": function(name) {
 			return UserIdLocker.releaseLock(name);
-		}),
-		"release-lock-connection": ConnectionIdLocker.wrap(function(name) {
+		},
+		"release-lock-connection": function(name) {
 			return ConnectionIdLocker.releaseLock(name);
-		}),
-	})
+		},
+		"long-running-method": function() {
+			this.unblock();
+			var methodId = Random.id(20);
+			var ids = [];
+			console.log('[S]', methodId, ConnectionIdLocker.getLockerId(this));
+			_.times(2000, function(idx) {
+				ids.push(SomeOtherCollection.insert({
+					methodId: methodId,
+					idx: idx,
+					type: Random.choice(_.range(50))
+				}));
+			});
+			console.log('[1]', methodId, ConnectionIdLocker.getLockerId(this));
+			_.times(200, function(type) {
+				SomeOtherCollection.update({
+					methodId: methodId,
+					type: type
+				}, {
+					$set: {
+						x: Math.random()
+					}
+				});
+			});
+			console.log('[2]', methodId, ConnectionIdLocker.getLockerId(this));
+			_.times(200, function(type) {
+				SomeOtherCollection.remove({
+					methodId: methodId,
+					type: type
+				});
+			});
+			console.log('[E]', methodId, ConnectionIdLocker.getLockerId(this));
+		},
+	});
 }
 
 if (Meteor.isClient) {
-	var UserIdLockerCollection = new Mongo.Collection("convexset_locker__userId");
-	var ConnectionIdLockerCollection = new Mongo.Collection("convexset_locker__connectionId");
+	UserIdLockerCollection = new Mongo.Collection("convexset_locker__userId");
+	ConnectionIdLockerCollection = new Mongo.Collection("convexset_locker__connectionId");
 
 	var connectionId = new ReactiveVar("-");
 	Meteor.setInterval(function() {
 		connectionId.set(Meteor.connection && Meteor.connection._lastSessionId || "-");
-	}, 1000);
+	}, 200);
 	Template.registerHelper('CurrentUser', () => (Meteor.user() || {
 		_id: "-",
 		username: "-"
@@ -92,43 +121,60 @@ if (Meteor.isClient) {
 		return EJSON.stringify(item);
 	});
 
-	function reportResult(err, res) {
+	var reportResult = function reportResult(err, res) {
 		if (typeof err !== "undefined") {
 			console.log("Error:", err);
 		}
 		if (typeof res !== "undefined") {
 			console.log("Result:", res);
 		}
-	}
+	};
+
+	var getLockName = function getLockName() {
+		var lockName1 = $('input.lock-name-1').val().trim();
+		var lockName2 = $('input.lock-name-2').val().trim();
+		if (!!lockName1 && !!lockName2) {
+			return [lockName1, lockName2];
+		}
+		if (!!lockName1) {
+			return lockName1;
+		}
+		return lockName2;
+	};
 
 	Template.LockerDemo.events({
-		'click button.login': function(event, template) {
-			var userName = event.target.getAttribute('data-username');
-			Meteor.loginWithPassword(userName, "password", function(err, res) {
+		'click button.login': function(event) {
+			var username = event.target.getAttribute('data-username');
+			console.info('Signing in as ' + username + '...');
+			Meteor.loginWithPassword(username, "password", function(err) {
 				if (!err) {
-					console.info('Logged in as ' + userName + '.');
+					console.info('Logged in as ' + username + '.');
 				}
 			});
 		},
-		'click button.acquire-lock-user': function(event, template) {
-			var lockName = $('input.lock-name').val();
-			var lockMeta = $('input.lock-meta').val() ? {meta: $('input.lock-meta').val()} : {};
+		'click button.acquire-lock-user': function() {
+			var lockName = getLockName();
+			var lockMeta = $('input.lock-meta').val() ? {
+				meta: $('input.lock-meta').val()
+			} : {};
 			Meteor.call("acquire-lock-user", lockName, lockMeta, reportResult);
 		},
-		'click button.acquire-lock-connection': function(event, template) {
-			var lockName = $('input.lock-name').val();
-			var lockMeta = $('input.lock-meta').val() ? {meta: $('input.lock-meta').val()} : {};
+		'click button.acquire-lock-connection': function() {
+			var lockName = getLockName();
+			var lockMeta = $('input.lock-meta').val() ? {
+				meta: $('input.lock-meta').val()
+			} : {};
 			Meteor.call("acquire-lock-connection", lockName, lockMeta, reportResult);
 		},
-		'click button.release-lock-user': function(event, template) {
-			var lockName = $('input.lock-name').val();
+		'click button.release-lock-user': function() {
+			var lockName = getLockName();
 			Meteor.call("release-lock-user", lockName, reportResult);
 		},
-		'click button.release-lock-connection': function(event, template) {
-			var lockName = $('input.lock-name').val();
+		'click button.release-lock-connection': function() {
+			var lockName = getLockName();
 			Meteor.call("release-lock-connection", lockName, reportResult);
 		},
-		'click button.release-all': function(event, template) {
+		'click button.release-all': function(event) {
 			var button = event.target;
 			$(button).attr('disabled', true);
 			Meteor.call("release-all-locks", function() {
@@ -138,13 +184,6 @@ if (Meteor.isClient) {
 	});
 
 	Template.LockerDemo.onRendered(function() {
-		Meteor.setTimeout(() => $($('.login')[0]).click(), 1000);
-		Meteor.setTimeout(function() {
-			Meteor.call("test-user-id", (err, ret) => console.log(err, ret));
-		}, 2000);
-	});
-
-	Meteor.startup(function() {
-		Meteor.call("test-connection-id", (err, ret) => console.log(err, ret));
+		Meteor.setTimeout(() => $($('.login')[Math.floor(5 * Math.random())]).click(), 1000);
 	});
 }
