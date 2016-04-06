@@ -24,8 +24,9 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	var _l = function Locker() {};
 	var L = new _l();
 
-
+	//////////////////////////////////////////////////////////////////////
 	// Debug Mode
+	//////////////////////////////////////////////////////////////////////
 	var _debugMode = false;
 	PackageUtilities.addPropertyGetterAndSetter(L, "DEBUG_MODE", {
 		get: () => _debugMode,
@@ -57,9 +58,12 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			console.error.apply(console, ['[Locker|' + name + ']'].concat(args));
 		}
 	}
+	//////////////////////////////////////////////////////////////////////
 
 
+	//////////////////////////////////////////////////////////////////////
 	// collection stuff
+	//////////////////////////////////////////////////////////////////////
 	var collection = new Mongo.Collection(collectionName);
 	collection._ensureIndex({
 		expiryMarker: 1
@@ -73,9 +77,12 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	});
 	PackageUtilities.addImmutablePropertyValue(L, "_collection", collection);
 	INFO("Preparing collection...");
+	//////////////////////////////////////////////////////////////////////
 
 
+	//////////////////////////////////////////////////////////////////////
 	// getLockerId via context
+	//////////////////////////////////////////////////////////////////////
 	function getContext() {
 		var context = DDP._CurrentInvocation.getOrNullIfOutsideFiber();
 		if (!!context) {
@@ -85,6 +92,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			throw new Meteor.Error('invalid-calling-context', 'Context only available within a Fiber. (e.g.: within Meteor Method invocations.)');
 		}
 	}
+
 	PackageUtilities.addImmutablePropertyFunction(L, "getLockerId", function getLockerId() {
 		var lockerId = contextToLockerIdFunction(getContext());
 		if (!!lockerId) {
@@ -94,9 +102,12 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			throw new Meteor.Error('invalid-locker-id', 'Blank, null, undefined or otherwise falsey lockerIds forbidden.');
 		}
 	});
+	//////////////////////////////////////////////////////////////////////
 
 
+	//////////////////////////////////////////////////////////////////////
 	// Lock Name Stuff
+	//////////////////////////////////////////////////////////////////////
 	var ALPHA_NUMERIC_PLUS = [].concat(_.range(48, 48 + 10), _.range(65, 65 + 26), _.range(97, 97 + 26)).map(x => String.fromCharCode(x)).concat(["_", "-"]).join("");
 	function isValidLockNameEntry(name) {
 		for (var i = 0; i < name.length; i++) {
@@ -131,9 +142,12 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		ERROR('[invalid-lock-name] Only strings containing alpha-numeric characters, underscores and dashes or arrays of such strings allowed.');
 		throw new Meteor.Error('invalid-lock-name');
 	}
+	//////////////////////////////////////////////////////////////////////
 
 
+	//////////////////////////////////////////////////////////////////////
 	// Locking Stuff Proper
+	//////////////////////////////////////////////////////////////////////
 	PackageUtilities.addImmutablePropertyFunction(L, "releaseLock", function releaseLock(name) {
 		name = toLockName(name);
 		var currLockerId = L.getLockerId();
@@ -143,7 +157,9 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			lockerId: currLockerId
 		});
 	});
-	var INVALID_META_DATA_KEYS = ['lockName', 'lockerId', 'expiryMarker'];
+
+	var INVALID_META_DATA_KEYS = ['lockName', 'lockerId', 'expiryMarker', 'userId', 'connectionId'];
+
 	PackageUtilities.addImmutablePropertyFunction(L, "acquireLock", function acquireLock(name, metadata = {}, expiryInSec = null) {
 		name = toLockName(name);
 		var currLockerId = L.getLockerId();
@@ -163,8 +179,11 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			}
 		});
 
+		var context = getContext();
 		var updater = _.extend({
-			expiryMarker: expiryMarker
+			expiryMarker: expiryMarker,
+			userId: context && context.userId,
+			connectionId: context && context.connection && context.connection.id
 		}, metadata);
 
 		var ret;
@@ -185,16 +204,63 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		}
 		return (!!ret && !!ret.numberAffected);
 	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "ifLockElse", function ifLockElse(name, options) {
+		options = _.extend({
+			metadata: {},
+			expiryInSec: null,
+			lockAcquiredCallback: function() {},
+			lockNotAcquiredCallback: function() {},
+			context: this,
+			releaseOwnLock: false,
+		}, options);
+		LOG('[ifLockElse|' + L.getLockerId() + '] ' + name, options);
+		try {
+			if (options.releaseOwnLock) {
+				// might be locked by connection...
+				L._releaseOwnLock(name);
+			}
+			L.acquireLock(name, options.metadata, options.expiryInSec);
+			var ret = {
+				lockAcquired: true,
+				outcome: options.lockAcquiredCallback.call(options.context)
+			};
+			L.releaseLock(name);
+			return ret;
+		} catch(e) {
+			return {
+				lockAcquired: false,
+				outcome: options.lockNotAcquiredCallback.call(options.context)
+			};
+		};
+	});	
+	//////////////////////////////////////////////////////////////////////
+
+
+	//////////////////////////////////////////////////////////////////////
+	// Other Lock Release Tools
+	//////////////////////////////////////////////////////////////////////
+	PackageUtilities.addImmutablePropertyFunction(L, "_releaseOwnLock", function _releaseOwnLock(name) {
+		name = toLockName(name);
+		LOG('[_releaseOwnLock] ' + name);
+		return !!collection.remove({
+			lockName: name,
+			userId: Meteor.userId()
+		});
+	});
+
 	PackageUtilities.addImmutablePropertyFunction(L, "_releaseLockById", function _releaseLockById(_id) {
 		LOG('[_releaseLockById] ' + _id);
 		return !!collection.remove({
 			_id: _id
 		});
 	});
+
 	PackageUtilities.addImmutablePropertyFunction(L, "_releaseAllLocks", function _releaseAllLocks() {
 		LOG('[_releaseAllLocks]');
 		return collection.remove({});
 	});
+	//////////////////////////////////////////////////////////////////////
 
 	return L;
 }

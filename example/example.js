@@ -27,8 +27,13 @@ if (Meteor.isServer) {
 
 	Meteor.methods({
 		"release-all-locks": function() {
-			UserIdLocker._releaseAllLocks();
-			ConnectionIdLocker._releaseAllLocks();
+			return [
+				UserIdLocker._releaseAllLocks(),
+				ConnectionIdLocker._releaseAllLocks()
+			];
+		},
+		"release-own-lock-connection": function(name) {
+			return ConnectionIdLocker._releaseOwnLock(name);
 		},
 		"acquire-lock-user": function(name, metadata) {
 			return UserIdLocker.acquireLock(name, metadata);
@@ -42,19 +47,58 @@ if (Meteor.isServer) {
 		"release-lock-connection": function(name) {
 			return ConnectionIdLocker.releaseLock(name);
 		},
+		"one-at-a-time-method-connection": function() {
+			this.unblock();
+			ConnectionIdLocker.ifLockElse('this-thing', {
+				context: null,
+				lockAcquiredCallback: function() {
+					console.log('Lock acquired. Locker ID: ' + ConnectionIdLocker.getLockerId());
+					var methodId = Random.id(20);
+					var ids = [];
+					_.times(2000, function(idx) {
+						ids.push(SomeOtherCollection.insert({
+							methodId: methodId,
+							idx: idx,
+							type: Random.choice(_.range(200))
+						}));
+					});
+					_.times(200, function(type) {
+						SomeOtherCollection.update({
+							methodId: methodId,
+							type: type
+						}, {
+							$set: {
+								x: Math.random()
+							}
+						});
+					});
+					_.times(200, function(type) {
+						SomeOtherCollection.remove({
+							methodId: methodId,
+							type: type
+						});
+					});
+					return true;
+				},
+				lockNotAcquiredCallback: function() {
+					console.log('Failed to acquire lock. Locker ID: ' + ConnectionIdLocker.getLockerId());
+					return false;
+				},
+			});
+		},
 		"long-running-method": function() {
 			this.unblock();
 			var methodId = Random.id(20);
 			var ids = [];
-			console.log('[S]', methodId, ConnectionIdLocker.getLockerId(this));
+			console.log('[S]', methodId, ConnectionIdLocker.getLockerId());
 			_.times(2000, function(idx) {
 				ids.push(SomeOtherCollection.insert({
 					methodId: methodId,
 					idx: idx,
-					type: Random.choice(_.range(50))
+					type: Random.choice(_.range(200))
 				}));
 			});
-			console.log('[1]', methodId, ConnectionIdLocker.getLockerId(this));
+			console.log('[1]', methodId, ConnectionIdLocker.getLockerId());
 			_.times(200, function(type) {
 				SomeOtherCollection.update({
 					methodId: methodId,
@@ -65,14 +109,14 @@ if (Meteor.isServer) {
 					}
 				});
 			});
-			console.log('[2]', methodId, ConnectionIdLocker.getLockerId(this));
+			console.log('[2]', methodId, ConnectionIdLocker.getLockerId());
 			_.times(200, function(type) {
 				SomeOtherCollection.remove({
 					methodId: methodId,
 					type: type
 				});
 			});
-			console.log('[E]', methodId, ConnectionIdLocker.getLockerId(this));
+			console.log('[E]', methodId, ConnectionIdLocker.getLockerId());
 		},
 	});
 }
@@ -113,7 +157,7 @@ if (Meteor.isClient) {
 	}]);
 
 	Template.registerHelper('showMetadata', function(item) {
-		['lockName', 'lockerId', '_id', 'expiryMarker'].forEach(function(key) {
+		['_id', 'lockName', 'lockerId', 'userId', 'connectionId', 'expiryMarker'].forEach(function(key) {
 			if (item.hasOwnProperty(key)) {
 				delete item[key];
 			}
@@ -174,13 +218,16 @@ if (Meteor.isClient) {
 			var lockName = getLockName();
 			Meteor.call("release-lock-connection", lockName, reportResult);
 		},
-		'click button.release-all': function(event) {
-			var button = event.target;
-			$(button).attr('disabled', true);
-			Meteor.call("release-all-locks", function() {
-				$(button).removeAttr('disabled');
-			});
+		'click button.release-own-lock-connection': function() {
+			var lockName = getLockName();
+			Meteor.call("release-own-lock-connection", lockName, reportResult);
 		},
+		'click button.release-all': function() {
+			Meteor.call("release-all-locks", reportResult);
+		},
+		'click button.one-at-a-time-method-connection': function() {
+			Meteor.call("one-at-a-time-method-connection", reportResult);
+		}
 	});
 
 	Template.LockerDemo.onRendered(function() {

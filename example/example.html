@@ -45,8 +45,10 @@
 			<br/>
 			<button class="release-lock-user">Release Lock (by User Id)</button>
 			<button class="release-lock-connection">Release Lock (by Connection Id)</button>
+			<button class="release-own-lock-connection">Release Own Lock (Connection Id Locker)</button>
 			<br/>
 			<button class="release-all">Release All Locks</button>
+			<button class="one-at-a-time-method-connection">Try One-at-a-Time Method</button>
 		</p>
 
 		<p><em>Note: Locks have a 30 sec time to live.</em></p>
@@ -61,6 +63,8 @@
 				<tr>
 					<th><code>lockerId</code></th>
 					<th><code>lockName</code></th>
+					<th><code>userId</code></th>
+					<th><code>connectionId</code></th>
 					<th><code>expiryMarker</code></th>
 					<th><code>data</code></th>
 				</tr>
@@ -70,6 +74,8 @@
 					<tr>
 						<td>{{lockerId}}</td>
 						<td>{{lockName}}</td>
+						<td>{{userId}}</td>
+						<td>{{connectionId}}</td>
 						<td>{{expiryMarker}}</td>
 						<td>{{showMetadata this}}</td>
 					</tr>
