@@ -255,8 +255,8 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 				L.releaseOwnLock(name);
 			}
 			if (options.maxTrials > 1) {
-				LOG('[ifLockElse|' + L.getLockerId() + '] Calling context._unblock() since options.maxTrials (' + options.maxTrials + ') > 1...');
-				getContext()._unblock();
+				LOG('[ifLockElse|' + L.getLockerId() + '] Calling context.unblock() since options.maxTrials (' + options.maxTrials + ') > 1...');
+				getContext().unblock();
 			}
 			while (mostRecentTrial < options.maxTrials) {
 				try {

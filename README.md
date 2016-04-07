@@ -51,28 +51,28 @@ However, one may create locks where users are defined by things such as IP addre
 Here is an example locker context:
 ```javascript
 {
-	isSimulation: false,
-	_unblock: [Function],
-	_calledUnblock: false,
-	userId: 'dwtnMSyxqxi32yGKC',
-	_setUserId: [Function],
-	connection: {
-		id: 'iE7w8mcJ2RGHATCLi',
-		close: [Function],
-		onClose: [Function],
-		clientAddress: '127.0.0.1',
-		httpHeaders: {
-			'x-forwarded-for': '127.0.0.1',
-			host: 'localhost:7123',
-			'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36',
-			'accept-language': 'en-GB,en-US;q=0.8,en;q=0.6'
-		}
-	},
-	randomSeed: null,
-	randomStream: null
+    isSimulation: false,
+    _unblock: [Function],
+    _calledUnblock: false,
+    userId: 'dwtnMSyxqxi32yGKC',
+    _setUserId: [Function],
+    connection: {
+        id: 'iE7w8mcJ2RGHATCLi',
+        close: [Function],
+        onClose: [Function],
+        clientAddress: '127.0.0.1',
+        httpHeaders: {
+            'x-forwarded-for': '127.0.0.1',
+            host: 'localhost:7123',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36',
+            'accept-language': 'en-GB,en-US;q=0.8,en;q=0.6'
+        }
+    },
+    randomSeed: null,
+    randomStream: null
 }
 ```
-(This looks like the `this` within a Meteor Method. Almost.)
+(Hmmmm... This kinda looks like the `this` within a Meteor Method. What about the famous `unblock`? Don't worry. Its prototype looks like `{ unblock: [Function], setUserId: [Function] }`.)
 
 The syntax for making a general locker is:
 

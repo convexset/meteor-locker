@@ -27,16 +27,16 @@ if (Meteor.isServer) {
 
 	Meteor.methods({
 		"release-all-locks": function() {
-			console.log("Incidentally, this is UserIdLocker locker context:", UserIdLocker.lockerContext);
-			console.log("... and, this is ConnectionIdLocker locker context:", ConnectionIdLocker.lockerContext);
+			console.log("Incidentally, this is UserIdLocker locker context (and prototype):", UserIdLocker.lockerContext, Object.getPrototypeOf(UserIdLocker.lockerContext));
+			console.log("... and, this is ConnectionIdLocker locker context (and prototype):", ConnectionIdLocker.lockerContext, Object.getPrototypeOf(ConnectionIdLocker.lockerContext));
 			return [
 				UserIdLocker._releaseAllLocks(),
 				ConnectionIdLocker._releaseAllLocks()
 			];
 		},
 		"release-all-own-locks": function() {
-			console.log("Incidentally, this is UserIdLocker locker context:", UserIdLocker.lockerContext);
-			console.log("... and, this is ConnectionIdLocker locker context:", ConnectionIdLocker.lockerContext);
+			console.log("Incidentally, this is UserIdLocker locker context (and prototype):", UserIdLocker.lockerContext, Object.getPrototypeOf(UserIdLocker.lockerContext));
+			console.log("... and, this is ConnectionIdLocker locker context (and prototype):", ConnectionIdLocker.lockerContext, Object.getPrototypeOf(ConnectionIdLocker.lockerContext));
 			return [
 				UserIdLocker.releaseAllOwnLocks(),
 				ConnectionIdLocker.releaseAllOwnLocks()
