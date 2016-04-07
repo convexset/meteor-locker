@@ -1,6 +1,6 @@
 # Locker
 
-A package for providing locking functionality for Meteor Methods. Mutual exclusion (mutex) locks are acquired by "users" on "resources" (actually strings), and this works fine with `this.unblock()` in Meteor Methods.
+A package for providing locking functionality in Meteor Methods. Mutual exclusion (mutex) locks are acquired by "users" on "resources" (actually strings), and this works fine with `this.unblock()` in Meteor Methods.
 
 Unique "users" are derived from information about the current DDP connection. So typical use cases would have "user ids" being derived from:
  - the `userId`

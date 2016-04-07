@@ -1,7 +1,7 @@
 Package.describe({
 	name: 'convexset:locker',
 	version: '0.1.0',
-	summary: 'A tool for managing locks on resource names in Meteor methods',
+	summary: 'A package for providing locking functionality in Meteor Methods',
 	git: 'https://github.com/convexset/meteor-locker',
 	documentation: '../../README.md'
 });
