@@ -7,7 +7,7 @@
 if (Meteor.isServer) {
 	UserIdLocker = Locker.makeUserIdLocker('user-id', 'convexset_locker__userId', 30);
 	UserIdLocker.DEBUG_MODE = true;
-	ConnectionIdLocker = Locker.makeConnectionIdLocker('user-id', 'convexset_locker__connectionId', 30);
+	ConnectionIdLocker = Locker.makeConnectionIdLocker('connection-id', 'convexset_locker__connectionId', 30);
 	ConnectionIdLocker.DEBUG_MODE = true;
 
 	SomeOtherCollection = new Meteor.Collection('other-thing');
@@ -27,6 +27,8 @@ if (Meteor.isServer) {
 
 	Meteor.methods({
 		"release-all-locks": function() {
+			console.log("Incidentally, this is by UserIdLocker locker context:", UserIdLocker.lockerContext);
+			console.log("... and, this is by ConnectionIdLocker locker context:", ConnectionIdLocker.lockerContext);
 			return [
 				UserIdLocker._releaseAllLocks(),
 				ConnectionIdLocker._releaseAllLocks()
@@ -49,8 +51,13 @@ if (Meteor.isServer) {
 		},
 		"one-at-a-time-method-connection": function() {
 			this.unblock();
-			ConnectionIdLocker.ifLockElse('this-thing', {
+			return ConnectionIdLocker.ifLockElse('this-thing', {
 				context: null,
+				maxTrials: 20,
+				retryIntervalInMs: 250,
+				retryIntervalLinearBackOffIncrementInMs: 250,
+				retryIntervalExponentialBackOffExponentMultiplier: 0.25,
+				releaseOwnLock: false,
 				lockAcquiredCallback: function() {
 					console.log('Lock acquired. Locker ID: ' + ConnectionIdLocker.getLockerId());
 					var methodId = Random.id(20);
@@ -59,10 +66,16 @@ if (Meteor.isServer) {
 						ids.push(SomeOtherCollection.insert({
 							methodId: methodId,
 							idx: idx,
-							type: Random.choice(_.range(200))
+							type: Random.choice(_.range(1000))
 						}));
+						if (idx + 1 === 1000) {
+							console.log('[this-thing] Part A 1/2 done. Locker ID: ' + ConnectionIdLocker.getLockerId());
+						}
+						if (idx + 1 === 2000) {
+							console.log('[this-thing] Part A done. Locker ID: ' + ConnectionIdLocker.getLockerId());
+						}
 					});
-					_.times(200, function(type) {
+					_.times(1000, function(type) {
 						SomeOtherCollection.update({
 							methodId: methodId,
 							type: type
@@ -72,51 +85,21 @@ if (Meteor.isServer) {
 							}
 						});
 					});
-					_.times(200, function(type) {
+					console.log('[this-thing] Part B done. Locker ID: ' + ConnectionIdLocker.getLockerId());
+					_.times(1000, function(type) {
 						SomeOtherCollection.remove({
 							methodId: methodId,
 							type: type
 						});
 					});
-					return true;
+					console.log('[this-thing] Part C done. All done. Locker ID: ' + ConnectionIdLocker.getLockerId());
+					return "all done";
 				},
 				lockNotAcquiredCallback: function() {
 					console.log('Failed to acquire lock. Locker ID: ' + ConnectionIdLocker.getLockerId());
-					return false;
+					return "sadness... nothing got done...";
 				},
 			});
-		},
-		"long-running-method": function() {
-			this.unblock();
-			var methodId = Random.id(20);
-			var ids = [];
-			console.log('[S]', methodId, ConnectionIdLocker.getLockerId());
-			_.times(2000, function(idx) {
-				ids.push(SomeOtherCollection.insert({
-					methodId: methodId,
-					idx: idx,
-					type: Random.choice(_.range(200))
-				}));
-			});
-			console.log('[1]', methodId, ConnectionIdLocker.getLockerId());
-			_.times(200, function(type) {
-				SomeOtherCollection.update({
-					methodId: methodId,
-					type: type
-				}, {
-					$set: {
-						x: Math.random()
-					}
-				});
-			});
-			console.log('[2]', methodId, ConnectionIdLocker.getLockerId());
-			_.times(200, function(type) {
-				SomeOtherCollection.remove({
-					methodId: methodId,
-					type: type
-				});
-			});
-			console.log('[E]', methodId, ConnectionIdLocker.getLockerId());
 		},
 	});
 }
@@ -126,9 +109,13 @@ if (Meteor.isClient) {
 	ConnectionIdLockerCollection = new Mongo.Collection("convexset_locker__connectionId");
 
 	var connectionId = new ReactiveVar("-");
+	var lastResult = new ReactiveVar("");
+	var lastError = new ReactiveVar("");
 	Meteor.setInterval(function() {
 		connectionId.set(Meteor.connection && Meteor.connection._lastSessionId || "-");
 	}, 200);
+	Template.registerHelper('lastResult', () => lastResult.get());
+	Template.registerHelper('lastError', () => lastError.get());
 	Template.registerHelper('CurrentUser', () => (Meteor.user() || {
 		_id: "-",
 		username: "-"
@@ -168,9 +155,17 @@ if (Meteor.isClient) {
 	var reportResult = function reportResult(err, res) {
 		if (typeof err !== "undefined") {
 			console.log("Error:", err);
+			lastError.set(EJSON.stringify(err, {
+				canonical: true
+			}));
+			lastResult.set("");
 		}
 		if (typeof res !== "undefined") {
 			console.log("Result:", res);
+			lastResult.set(EJSON.stringify(res, {
+				canonical: true
+			}));
+			lastError.set("");
 		}
 	};
 

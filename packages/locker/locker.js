@@ -8,10 +8,10 @@ Locker = (function() {
 
 	PackageUtilities.addImmutablePropertyFunction(LF, "makeLocker", makeLocker);
 	PackageUtilities.addImmutablePropertyFunction(LF, "makeUserIdLocker", function makeUserIdLocker(name = 'user-id', collectionName = 'convexset_locker__userId', defaultExpiryInSec = 3600) {
-		return makeLocker(name, collectionName, context => context.userId, defaultExpiryInSec);
+		return makeLocker(name, collectionName, context => context && context.userId, defaultExpiryInSec);
 	});
 	PackageUtilities.addImmutablePropertyFunction(LF, "makeConnectionIdLocker", function makeConnectionIdLocker(name = 'connection-id', collectionName = 'convexset_locker__connectionId', defaultExpiryInSec = 3600) {
-		return makeLocker(name, collectionName, context => context.connection && context.connection.id, defaultExpiryInSec);
+		return makeLocker(name, collectionName, context => context && context.connection && context.connection.id, defaultExpiryInSec);
 	});
 	PackageUtilities.addImmutablePropertyFunction(LF, "makeLocker", makeLocker);
 
@@ -90,6 +90,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			throw new Meteor.Error('invalid-calling-context', 'Context only available within a Fiber. (e.g.: within Meteor Method invocations.)');
 		}
 	}
+	PackageUtilities.addPropertyGetter(L, "lockerContext", getContext);
 
 	PackageUtilities.addImmutablePropertyFunction(L, "getUserIdAndConnectionId", function getUserIdAndConnectionId() {
 		var context = getContext();
@@ -158,7 +159,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	PackageUtilities.addImmutablePropertyFunction(L, "releaseLock", function releaseLock(name) {
 		name = toLockName(name);
 		var currLockerId = L.getLockerId();
-		LOG('[releaseLock|' + currLockerId + '] ' + name);
+		LOG('[releaseLock|' + currLockerId + '] Lock Name: ' + name);
 		return !!collection.remove({
 			lockName: name,
 			lockerId: currLockerId
@@ -170,7 +171,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	PackageUtilities.addImmutablePropertyFunction(L, "acquireLock", function acquireLock(name, metadata = {}, expiryInSec = null) {
 		name = toLockName(name);
 		var currLockerId = L.getLockerId();
-		LOG('[acquireLock|' + currLockerId + '] ' + name, metadata, expiryInSec);
+		LOG('[acquireLock|' + currLockerId + '] Lock Name: ' + name, "; Metadata:", metadata, "; expiryInSec:", expiryInSec);
 		if (typeof metadata !== "object") {
 			throw new Meteor.Error('metadata-should-be-an-object');
 		}
@@ -215,16 +216,48 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			expiryInSec: null,
 			lockAcquiredCallback: function() {},
 			lockNotAcquiredCallback: function() {},
-			context: this,
+			context: {},
 			releaseOwnLock: false,
+			maxTrials: 1,
+			retryIntervalInMs: 1000,
+			retryIntervalLinearBackOffIncrementInMs: 0,
+			retryIntervalExponentialBackOffExponentMultiplier: 0,
 		}, options);
-		LOG('[ifLockElse|' + L.getLockerId() + '] ' + name, options);
+		if (options.maxTrials < 1) {
+			throw new Meteor.Error('invalid-argument', 'options.maxTrials');
+		}
+
+
+		LOG('[ifLockElse|' + L.getLockerId() + '] Lock Name: ' + name, '; Options:', options);
+		var mostRecentTrial = 0;
 		try {
 			if (options.releaseOwnLock) {
 				// might be locked by connection...
+				LOG('[ifLockElse|' + L.getLockerId() + '] Releasing own locks (locks on ' + name + ' by the current user)');
 				L._releaseOwnLock(name);
 			}
-			L.acquireLock(name, options.metadata, options.expiryInSec);
+			if (options.maxTrials > 1) {
+				LOG('[ifLockElse|' + L.getLockerId() + '] Calling context._unblock() since options.maxTrials (' + options.maxTrials + ') > 1...');
+				getContext()._unblock();
+			}
+			while (mostRecentTrial < options.maxTrials) {
+				try {
+					mostRecentTrial += 1;
+					L.acquireLock(name, options.metadata, options.expiryInSec);
+					break;
+				} catch (e) {
+					if (mostRecentTrial < options.maxTrials) {
+						var expBackOffMul = Math.exp(Math.max(0, Math.min(700, (mostRecentTrial - 1) * options.retryIntervalExponentialBackOffExponentMultiplier)));
+						var nextRetryIntervalInMs = Math.floor((options.retryIntervalInMs * expBackOffMul) + (mostRecentTrial - 1) * options.retryIntervalLinearBackOffIncrementInMs);
+						WARN('[ifLockElse|' + L.getLockerId() + '] Failed to acquire lock on ' + name + ' (trial ' + mostRecentTrial + '). Trying again in ' + nextRetryIntervalInMs + 'ms. (Max Trials: ' + options.maxTrials + ')');
+						Meteor._sleepForMs(nextRetryIntervalInMs);
+						WARN('[ifLockElse|' + L.getLockerId() + '] Retrying...');
+					} else {
+						ERROR('[ifLockElse|' + L.getLockerId() + '] Failed to acquire lock on ' + name + ' (trial ' + mostRecentTrial + '). Giving up. (Max Trials: ' + options.maxTrials + ')');
+						throw e;
+					}
+				}
+			}
 			var ret = {
 				lockAcquired: true,
 				outcome: options.lockAcquiredCallback.call(options.context)
@@ -234,7 +267,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		} catch (e) {
 			return {
 				lockAcquired: false,
-				outcome: options.lockNotAcquiredCallback.call(options.context)
+				outcome: options.lockNotAcquiredCallback.call(options.context),
 			};
 		}
 	});

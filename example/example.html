@@ -21,6 +21,14 @@
 			<td><strong>Current User Id:</strong></td>
 			<td><code>{{CurrentUser._id}}</code></td>
 		</tr>
+		<tr>
+			<td><strong>Last Result:</strong></td>
+			<td><code>{{lastResult}}</code></td>
+		</tr>
+		<tr>
+			<td><strong>Last Error:</strong></td>
+			<td><code>{{lastError}}</code></td>
+		</tr>
 	</table>
 
 	<h2>Lock Data</h2>
@@ -48,12 +56,19 @@
 			<button class="release-own-lock-connection">Release Own Lock (Connection Id Locker)</button>
 			<br/>
 			<button class="release-all">Release All Locks</button>
-			<button class="one-at-a-time-method-connection">Try One-at-a-Time Method</button>
+			<button class="one-at-a-time-method-connection">Execute One-Connection-at-a-Time Method</button>
 		</p>
 
-		<p><em>Note: Locks have a 30 sec time to live.</em></p>
-		<p><em>Note: Open in a different window to establish a different connection.</em></p>
-		<p><em>Note: Open in another browser/incognito mode/private mode to be able to sign in as a different user.</em></p>
+		<div>
+			<strong>Note:</strong>
+			<ul>
+				<li>Locks have a 30 sec time to live in this implementation (it is configurable)</li>
+				<li>Open this in a different window to establish a different connection.</li>
+				<li>Open this in another browser/incognito mode/private mode to be able to sign in as a different user.</li>
+				<li>For some use cases, one wants to call a method to try to acquire a lock and either return with the lock acquired or report failure as soon as possible (the acquire/release buttons demonstrate that)</li>
+				<li>For other use cases, one wants to keep trying a lock is acquired and then do a task (the one-connection-at-a-time-method illustrates this; look in the server console to watch the action unfold)</li>
+			</ul>
+		</div>
 	</div>
 
 	{{#each AllLockData}}
