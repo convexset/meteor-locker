@@ -1,8 +1,8 @@
 /* global DDP: true */
-/* global Locker: true */
+/* global LockerFactory: true */
 /* global PackageUtilities: true */
 
-Locker = (function() {
+LockerFactory = (function() {
 	var _lf = function LockerFactory() {};
 	var LF = new _lf();
 
@@ -13,7 +13,6 @@ Locker = (function() {
 	PackageUtilities.addImmutablePropertyFunction(LF, "makeConnectionIdLocker", function makeConnectionIdLocker(name = 'connection-id', collectionName = 'convexset_locker__connectionId', defaultExpiryInSec = 3600) {
 		return makeLocker(name, collectionName, context => context && context.connection && context.connection.id, defaultExpiryInSec);
 	});
-	PackageUtilities.addImmutablePropertyFunction(LF, "makeLocker", makeLocker);
 
 	return LF;
 }());
@@ -102,6 +101,10 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 
 	PackageUtilities.addImmutablePropertyFunction(L, "getLockerId", function getLockerId() {
 		var lockerId = contextToLockerIdFunction(getContext());
+		if ((lockerId !== null) && (typeof lockerId !== "undefined") && (typeof lockerId !== "string")) {
+			throw new Meteor.Error('invalid-locker-id', 'contextToLockerIdFunction should only return strings, null\'s or undefined\'s.');
+		}
+
 		if (!!lockerId) {
 			return lockerId;
 		} else {
@@ -166,7 +169,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		});
 	});
 
-	var INVALID_META_DATA_KEYS = ['lockName', 'lockerId', 'expiryMarker', 'userId', 'connectionId'];
+	var INVALID_META_DATA_KEYS = ['_id', 'lockName', 'lockerId', 'expiryMarker', 'userId', 'connectionId'];
 
 	PackageUtilities.addImmutablePropertyFunction(L, "acquireLock", function acquireLock(name, metadata = {}, expiryInSec = null) {
 		name = toLockName(name);
@@ -180,10 +183,24 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		}
 		var expiryMarker = new Date((new Date()).getTime() - (defaultExpiryInSec - expiryInSec) * 1000);
 
+		if (typeof metadata !== "object") {
+			ERROR('[invalid-argument] metadata should be an object:', metadata);
+			throw new Meteor.Error('invalid-argument', 'metadata should be an object')
+		}
 		INVALID_META_DATA_KEYS.forEach(function(key) {
 			if (metadata.hasOwnProperty(key)) {
 				WARN('[metadata-with-invalid-field] ' + key);
 				delete metadata[key];
+			}
+		});
+		Object.keys(metadata).forEach(function(key) {
+			if (!isValidLockNameEntry(key)) {
+				ERROR('[invalid-argument] Invalid key in metadata:', key);
+				throw new Meteor.Error('invalid-argument', 'metadata keys should only contain alphanumeric characters, \"-\" and \"_\".');
+			}
+			if (!isValidLockNameEntry(metadata[key])) {
+				ERROR('[invalid-argument] Invalid value in metadata[' + key + ']:', metadata[key]);
+				throw new Meteor.Error('invalid-argument', 'metadata values should only contain alphanumeric characters, \"-\" and \"_\".');
 			}
 		});
 
@@ -223,18 +240,19 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			retryIntervalLinearBackOffIncrementInMs: 0,
 			retryIntervalExponentialBackOffExponentMultiplier: 0,
 		}, options);
+
+		LOG('[ifLockElse|' + L.getLockerId() + '] Lock Name: ' + name, '; Options:', options);
+
 		if (options.maxTrials < 1) {
 			throw new Meteor.Error('invalid-argument', 'options.maxTrials');
 		}
 
-
-		LOG('[ifLockElse|' + L.getLockerId() + '] Lock Name: ' + name, '; Options:', options);
 		var mostRecentTrial = 0;
 		try {
 			if (options.releaseOwnLock) {
 				// might be locked by connection...
 				LOG('[ifLockElse|' + L.getLockerId() + '] Releasing own locks (locks on ' + name + ' by the current user)');
-				L._releaseOwnLock(name);
+				L.releaseOwnLock(name);
 			}
 			if (options.maxTrials > 1) {
 				LOG('[ifLockElse|' + L.getLockerId() + '] Calling context._unblock() since options.maxTrials (' + options.maxTrials + ') > 1...');
@@ -260,14 +278,18 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			}
 			var ret = {
 				lockAcquired: true,
-				outcome: options.lockAcquiredCallback.call(options.context)
+				outcome: options.lockAcquiredCallback.call(
+					_.isFunction(options.context) ? options.context() : options.context
+				)
 			};
 			L.releaseLock(name);
 			return ret;
 		} catch (e) {
 			return {
 				lockAcquired: false,
-				outcome: options.lockNotAcquiredCallback.call(options.context),
+				outcome: options.lockNotAcquiredCallback.call(
+					_.isFunction(options.context) ? options.context() : options.context
+				)
 			};
 		}
 	});
@@ -277,28 +299,40 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	//////////////////////////////////////////////////////////////////////
 	// Other Lock Release Tools
 	//////////////////////////////////////////////////////////////////////
-	PackageUtilities.addImmutablePropertyFunction(L, "_releaseOwnLock", function _releaseOwnLock(name) {
+	PackageUtilities.addImmutablePropertyFunction(L, "releaseOwnLock", function releaseOwnLock(name) {
 		name = toLockName(name);
-		LOG('[_releaseOwnLock] ' + name);
+		LOG('[releaseOwnLock] ' + name);
 		return !!collection.remove({
 			lockName: name,
 			userId: Meteor.userId()
 		});
 	});
 
-	PackageUtilities.addImmutablePropertyFunction(L, "_releaseAllOwnLocks", function _releaseAllOwnLocks() {
-		LOG('[_releaseAllOwnLocks]');
+	PackageUtilities.addImmutablePropertyFunction(L, "releaseAllOwnLocks", function releaseAllOwnLocks() {
+		LOG('[releaseAllOwnLocks]');
 		return !!collection.remove({
 			userId: Meteor.userId()
 		});
 	});
 
-	PackageUtilities.addImmutablePropertyFunction(L, "_releaseAllOwnCurrentConnectionLocks", function _releaseAllCurrentConnectionLocks() {
-		LOG('[_releaseAllOwnCurrentConnectionLocks]');
-		var context = getContext();
-		return !!collection.remove(L.getUserIdAndConnectionId());
+	PackageUtilities.addImmutablePropertyFunction(L, "releaseAllCurrentConnectionLocks", function releaseAllCurrentConnectionLocks() {
+		LOG('[releaseAllCurrentConnectionLocks]');
+		var info = L.getUserIdAndConnectionId();
+		return !!collection.remove({
+			connectionId: info && info.connectionId
+		});
 	});
 
+	PackageUtilities.addImmutablePropertyFunction(L, "releaseAllOwnCurrentConnectionLocks", function releaseAllCurrentConnectionLocks() {
+		LOG('[releaseAllOwnCurrentConnectionLocks]');
+		return !!collection.remove(L.getUserIdAndConnectionId());
+	});
+	//////////////////////////////////////////////////////////////////////
+
+
+	//////////////////////////////////////////////////////////////////////
+	// Administrative Lock Release Tools
+	//////////////////////////////////////////////////////////////////////
 	PackageUtilities.addImmutablePropertyFunction(L, "_releaseLockById", function _releaseLockById(_id) {
 		LOG('[_releaseLockById] ' + _id);
 		return !!collection.remove({

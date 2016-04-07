@@ -20,7 +20,7 @@ Package.onUse(function(api) {
 		'server');
 
 	api.addFiles(['locker.js'], 'server');
-	api.export(['Locker'], 'server');
+	api.export(['LockerFactory'], 'server');
 });
 
 

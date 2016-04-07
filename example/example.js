@@ -1,13 +1,13 @@
 /* global Random: true */
-/* global Locker: true */
+/* global LockerFactory: true */
 /* global UserIdLocker: true */
 /* global ConnectionIdLocker: true */
 /* global SomeOtherCollection: true */
 
 if (Meteor.isServer) {
-	UserIdLocker = Locker.makeUserIdLocker('user-id', 'convexset_locker__userId', 30);
+	UserIdLocker = LockerFactory.makeUserIdLocker('user-id', 'convexset_locker__userId', 30);
 	UserIdLocker.DEBUG_MODE = true;
-	ConnectionIdLocker = Locker.makeConnectionIdLocker('connection-id', 'convexset_locker__connectionId', 30);
+	ConnectionIdLocker = LockerFactory.makeConnectionIdLocker('connection-id', 'convexset_locker__connectionId', 30);
 	ConnectionIdLocker.DEBUG_MODE = true;
 
 	SomeOtherCollection = new Meteor.Collection('other-thing');
@@ -27,11 +27,19 @@ if (Meteor.isServer) {
 
 	Meteor.methods({
 		"release-all-locks": function() {
-			console.log("Incidentally, this is by UserIdLocker locker context:", UserIdLocker.lockerContext);
-			console.log("... and, this is by ConnectionIdLocker locker context:", ConnectionIdLocker.lockerContext);
+			console.log("Incidentally, this is UserIdLocker locker context:", UserIdLocker.lockerContext);
+			console.log("... and, this is ConnectionIdLocker locker context:", ConnectionIdLocker.lockerContext);
 			return [
 				UserIdLocker._releaseAllLocks(),
 				ConnectionIdLocker._releaseAllLocks()
+			];
+		},
+		"release-all-own-locks": function() {
+			console.log("Incidentally, this is UserIdLocker locker context:", UserIdLocker.lockerContext);
+			console.log("... and, this is ConnectionIdLocker locker context:", ConnectionIdLocker.lockerContext);
+			return [
+				UserIdLocker.releaseAllOwnLocks(),
+				ConnectionIdLocker.releaseAllOwnLocks()
 			];
 		},
 		"release-own-lock-connection": function(name) {
@@ -220,6 +228,9 @@ if (Meteor.isClient) {
 		'click button.release-all': function() {
 			Meteor.call("release-all-locks", reportResult);
 		},
+		'click button.release-all-own': function() {
+			Meteor.call("release-all-own-locks", reportResult);
+		},
 		'click button.one-at-a-time-method-connection': function(event) {
 			$(event.target).attr('disabled', true);
 			Meteor.call("one-at-a-time-method-connection", function(err, res) {
@@ -231,5 +242,8 @@ if (Meteor.isClient) {
 
 	Template.LockerDemo.onRendered(function() {
 		Meteor.setTimeout(() => $($('.login')[Math.floor(5 * Math.random())]).click(), 1000);
+		$('input.lock-name-1').val(Random.choice(_.range(1,6).map(x => 'action-' + x)));
+		$('input.lock-name-2').val(Random.id(5));
+		$('input.lock-meta').val(Random.id(5));
 	});
 }

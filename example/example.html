@@ -56,12 +56,14 @@
 			<button class="release-own-lock-connection">Release Own Lock (Connection Id Locker)</button>
 			<br/>
 			<button class="release-all">Release All Locks</button>
+			<button class="release-all-own">Release All Own Locks</button>
 			<button class="one-at-a-time-method-connection">Execute One-Connection-at-a-Time Method</button>
 		</p>
 
 		<div>
 			<strong>Note:</strong>
 			<ul>
+				<li>This example is probably best tested with multiple users connected to the same server</li>
 				<li>Locks have a 30 sec time to live in this implementation (it is configurable)</li>
 				<li>Open this in a different window to establish a different connection.</li>
 				<li>Open this in another browser/incognito mode/private mode to be able to sign in as a different user.</li>
