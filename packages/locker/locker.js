@@ -81,6 +81,8 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	// getLockerId via context
 	//////////////////////////////////////////////////////////////////////
 	function getContext() {
+		// https://github.com/meteor/meteor/blob/abd574f38008b45f5e2a6bc322b10bcdde44763a/packages/meteor/dynamics_nodejs.js
+		// https://github.com/meteor/meteor/blob/be986fd70926c9dd8eff6d8866205f236c8562c4/packages/ddp-server/livedata_server.js#L709
 		var context = DDP._CurrentInvocation.getOrNullIfOutsideFiber();
 		if (!!context) {
 			return context;
