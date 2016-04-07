@@ -88,14 +88,14 @@ First and foremost, lock names are either of the following:
 
 Now, given a locker `Locker`...
  -  `Locker.acquireLock(name, metadata, expiryInSec = null)` {
-   * `name`: the name of the lock to acquire (see [above](#working-with-locks) for guidelines)
+   * `name`: the name of the lock to acquire (see [above](#working-with-locks) for naming guidelines)
    * `metadata`: metadata to include in lock record (default: `{}`)
      + may contain key-value pairs of strings comprising only alphanumeric characters as well as `"-"` and `"_"`
      + useful for use with `Locker._collection` (see [below](#administrative-functions))
      + the following keys will be ignored: `['lockName', 'lockerId', 'expiryMarker', 'userId', 'connectionId', '_id']`
    * `expiryInSec`: time to expiry of this lock; capped by the [defaults previously configured](#creating-a-locker) (default: `null`)
  - `Locker.releaseLock(name)`: releases the lock with name `name` (if it belongs to the current "user", as defined in the [configuration](#creating-a-locker); i.e.: possibly a Meteor user or a connection)
- - `Locker.ifLockElse(name, options)`: tries to acquire a lock with name `name` and perform certain actions if successful and others if not, the following may be specified in the `options` object:
+ - `Locker.ifLockElse(name, options)`: tries to acquire a lock with name `name` (see [above](#working-with-locks) for naming guidelines) and perform certain actions if successful and others if not, the following may be specified in the `options` object:
    * `metadata`: as above (default: `{}`)
    * `expiryInSec`: as above (default: `null`)
    * `lockAcquiredCallback`: a function with tasks to execute if the lock is successfully acquired (default: `function() {}`)
