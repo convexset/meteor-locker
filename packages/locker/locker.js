@@ -348,5 +348,62 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	});
 	//////////////////////////////////////////////////////////////////////
 
+
+	//////////////////////////////////////////////////////////////////////
+	// Publications
+	//////////////////////////////////////////////////////////////////////
+	PackageUtilities.addImmutablePropertyFunction(L, "makePublication", function makePublication(name, selector = {}, authFunction = () => true) {
+		Meteor.publish(name, function publishLocks() {
+			var _sel = _.isFunction(selector) ? selector(this) : selector;
+			LOG('[Subscription to LocksPublication] ' + name, _sel, this);
+			if (authFunction(this)) {
+				return collection.find(_sel);
+			} else {
+				this.ready();
+			}
+		});
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "makeOwnLocksPublication", function makeOwnLocksPublication(name, authFunction = () => true) {
+		Meteor.publish(name, function publishOwnLocks() {
+			LOG('[Subscription to OwnLocksPublication] ' + name, this);
+			if (authFunction(this)) {
+				return collection.find({
+					userId: this.userId
+				});
+			} else {
+				this.ready();
+			}
+		});
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "makeCurrConnectionLocksPublication", function makeCurrConnectionLocksPublication(name, authFunction = () => true) {
+		Meteor.publish(name, function publishCurrConnectionLocks() {
+			LOG('[Subscription to CurrConnectionLocksPublication] ' + name, this);
+			if (authFunction(this)) {
+				return collection.find({
+					connectionId: this && this.connection && this.connection.id
+				});
+			} else {
+				this.ready();
+			}
+		});
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "makeOwnCurrConnectionLocksPublication", function makeOwnLocksPublication(name, authFunction = () => true) {
+		Meteor.publish(name, function publishOwnCurrConnectionLocks() {
+			LOG('[Subscription to OwnCurrConnectionLocksPublication] ' + name, this);
+			if (authFunction(this)) {
+				return collection.find({
+					userId: this.userId,
+					connectionId: this && this.connection && this.connection.id
+				});
+			} else {
+				this.ready();
+			}
+		});
+	});
+	//////////////////////////////////////////////////////////////////////
+
 	return L;
 }

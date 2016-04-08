@@ -21,6 +21,7 @@ Have a look at the example app to see how to use the package.
 - [Usage](#usage)
   - [Creating a "Locker"](#creating-a-locker)
   - [Working With Locks](#working-with-locks)
+  - [Publications](#publications)
   - [Administrative Functions](#administrative-functions)
   - [Debug Mode](#debug-mode)
 
@@ -74,6 +75,23 @@ Here is an example locker context:
 ```
 (Hmmmm... This kinda looks like the `this` within a Meteor Method. What about the famous `unblock`? Don't worry. Its prototype looks like `{ unblock: [Function], setUserId: [Function] }`.)
 
+But then again, maybe one need only care about this subset:
+```javascript
+{
+    userId: 'dwtnMSyxqxi32yGKC',
+    connection: {
+        id: 'iE7w8mcJ2RGHATCLi',
+        clientAddress: '127.0.0.1',
+        httpHeaders: {
+            'x-forwarded-for': '127.0.0.1',
+            host: 'localhost:7123',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36',
+            'accept-language': 'en-GB,en-US;q=0.8,en;q=0.6'
+        }
+    }
+}
+```
+
 The syntax for making a general locker is:
 
 `LockerFactory.makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpiryInSec = 3600)`
@@ -111,6 +129,110 @@ Now, given a locker `Locker`...
  - `Locker.releaseAllOwnLocks()`: releases all locks created by the same Meteor user (regardless of locker type; works even when locking by connection id)
  - `Locker.releaseAllCurrentConnectionLocks()`: releases all locks created from the current connection (regardless of locker type)
  - `Locker.releaseAllOwnCurrentConnectionLocks()`: releases all locks created by the current Meteor user from the current connection (regardless of locker type)
+
+
+### Publications
+
+Before talking about publication functionality, it is useful to provide an example of a subscription context which will be used for authentication and computing selectors for collection data.
+
+Here is an example of a subscription context (the `this` when a publication function is called during a subscription):
+```javascript
+{
+    _session: { /* Don't Worry About This */ },
+    connection: {
+        id: 'ix35iGpY7TaX6p2Mr',
+        close: [Function],
+        onClose: [Function],
+        clientAddress: '127.0.0.1',
+        httpHeaders: {
+            'x-forwarded-for': '127.0.0.1',
+            host: 'localhost:7123',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36',
+            'accept-language': 'en-GB,en-US;q=0.8,en;q=0.6'
+        }
+    },
+    _handler: [Function: publishLocks],
+    _subscriptionId: 'FmqF9MdPaj9rEhgLN',
+    _name: 'conn-id-locks',
+    _params: [],
+    _subscriptionHandle: 'NFmqF9MdPaj9rEhgLN',
+    _deactivated: false,
+    _stopCallbacks: [],
+    _documents: {},
+    _ready: false,
+    userId: 'x9pnyfHjbK5c9u4Hz',
+    _idFilter: {
+        idStringify: [Function],
+        idParse: [Function]
+    }
+}
+```
+... of course, this is perhaps the subset one should care about: 
+```javascript
+{
+    connection: {
+        id: 'ix35iGpY7TaX6p2Mr',
+        httpHeaders: {
+            'x-forwarded-for': '127.0.0.1',
+            host: 'localhost:7123',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.110 Safari/537.36',
+            'accept-language': 'en-GB,en-US;q=0.8,en;q=0.6'
+        }
+    },
+    userId: 'x9pnyfHjbK5c9u4Hz'
+}
+```
+
+Given a locker `Locker`...
+ - `Locker.makePublication(name, selector, authFunction)`: make a generic publication with authentication
+   * `name`: the name of the publication
+   * `selector`: the selector on the lock collection; if a function is supplied, then it will be invoked with the subscription context as its argument to generate the selector at subscription time (default: `{}`)
+     - e.g.: selecting the locks associated with the current user, `context => ({userId: context && context.userId})`
+     - e.g.: selecting the locks associated with the current connection, `context => ({connectionId: context && context.connection && context.connection.id})`
+     - Note that the selector can be used to filter against metadata fields. For example, an "organization id" might be stored in a metadata field, and the selector can use user id information in the subscription context to find the current user's organization id, and now an administrative panel for releasing locks at an "organization level" can be built
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+ - `Locker.makeOwnLocksPublication(name, authFunction)`: publish locks 
+   * `name`: the name of the publication
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+ - `Locker.makeCurrConnectionLocksPublication(name, authFunction)`: 
+   * `name`: the name of the publication
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+ - `Locker.makeOwnCurrConnectionLocksPublication(name, authFunction)`: 
+   * `name`: the name of the publication
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+
+Given that one can publish lock records, one question that might arise is what a lock record might look like. Here are some examples (don't mind the serialized date):
+```javascript
+{
+    "_id": "fWfHnwBLpKgKQqdiY",
+    "lockName": "action-1:YvtKX",
+    "lockerId": "PntbfdCAaSMTWjkmD",  // the userId for this Locker
+    "expiryMarker": {
+        "$date": 1460112131863
+    },
+    "userId": "PntbfdCAaSMTWjkmD",
+    "connectionId": "TkKPTzP7XnvtjvbgC",
+    "meta": "abcd",  // metadata field
+    "beta": "efgh",  // metadata field
+    "zeta": "ijlk"   // metadata field
+}
+```
+At times, the `userId` field could be `null`, as it might also be possible (though unlikely) for the `connectionId` to also be `null`.
+```javascript
+{
+    "_id": "smqHpsNRgu2ssWpkb",
+    "lockName": "action-3:3PGT7",
+    "lockerId": "wggzNHjQ8nbwYogk3",  // the connectionId for this Locker
+    "expiryMarker": {
+        "$date": 1460112206812
+    },
+    "userId": null,
+    "connectionId": "wggzNHjQ8nbwYogk3",
+    "meta": "lmno",  // metadata field
+    "beta": "pqrs",  // metadata field
+    "zeta": "tuvw"   // metadata field
+}
+```
 
 ### Administrative Functions
 

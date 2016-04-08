@@ -10,6 +10,12 @@ if (Meteor.isServer) {
 	ConnectionIdLocker = LockerFactory.makeConnectionIdLocker('connection-id', 'convexset_locker__connectionId', 30);
 	ConnectionIdLocker.DEBUG_MODE = true;
 
+	UserIdLocker.makePublication('user-id-locks');
+	ConnectionIdLocker.makePublication('conn-id-locks');
+	Meteor.publish('users', function() {
+		return Meteor.users.find();
+	});
+
 	SomeOtherCollection = new Meteor.Collection('other-thing');
 
 	Meteor.startup(function() {
@@ -115,6 +121,9 @@ if (Meteor.isServer) {
 if (Meteor.isClient) {
 	UserIdLockerCollection = new Mongo.Collection("convexset_locker__userId");
 	ConnectionIdLockerCollection = new Mongo.Collection("convexset_locker__connectionId");
+	Meteor.subscribe('users');
+	Meteor.subscribe('user-id-locks');
+	Meteor.subscribe('conn-id-locks');
 
 	var connectionId = new ReactiveVar("-");
 	var lastResult = new ReactiveVar("");
