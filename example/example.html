@@ -64,11 +64,12 @@
 			<strong>Note:</strong>
 			<ul>
 				<li>This example is probably best tested with multiple users connected to the same server</li>
-				<li>Locks have a 30 sec time to live in this implementation (it is configurable)</li>
+				<li>Locks have a 2 min time to live in this implementation (it is configurable)</li>
 				<li>Open this in a different window to establish a different connection.</li>
 				<li>Open this in another browser/incognito mode/private mode to be able to sign in as a different user.</li>
 				<li>For some use cases, one wants to call a method to try to acquire a lock and either return with the lock acquired or report failure as soon as possible (the acquire/release buttons demonstrate that)</li>
 				<li>For other use cases, one wants to keep trying a lock is acquired and then do a task (the one-connection-at-a-time-method illustrates this; look in the server console to watch the action unfold)</li>
+				<li>As with mutexes that lock on abstract resources, nothing is stopping code from ignoring a failure to acquire a lock and proceed to use a resource anyway. However, since this package is a server-side package, there is a reasonable expectation that "civilized behaviour" can be ensured by the developer.</li>
 			</ul>
 		</div>
 	</div>

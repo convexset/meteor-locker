@@ -5,9 +5,9 @@
 /* global SomeOtherCollection: true */
 
 if (Meteor.isServer) {
-	UserIdLocker = LockerFactory.makeUserIdLocker('user-id', 'convexset_locker__userId', 30);
+	UserIdLocker = LockerFactory.makeUserIdLocker('user-id', 'convexset_locker__userId', 120);
 	UserIdLocker.DEBUG_MODE = true;
-	ConnectionIdLocker = LockerFactory.makeConnectionIdLocker('connection-id', 'convexset_locker__connectionId', 30);
+	ConnectionIdLocker = LockerFactory.makeConnectionIdLocker('connection-id', 'convexset_locker__connectionId', 120);
 	ConnectionIdLocker.DEBUG_MODE = true;
 
 	UserIdLocker.makePublication('user-id-locks');
@@ -67,7 +67,7 @@ if (Meteor.isServer) {
 			this.unblock();
 			return ConnectionIdLocker.ifLockElse('this-thing', {
 				context: null,
-				maxTrials: 20,
+				maxTrials: 8,
 				retryIntervalInMs: 250,
 				retryIntervalLinearBackOffIncrementInMs: 250,
 				retryIntervalExponentialBackOffExponentMultiplier: 0.25,
