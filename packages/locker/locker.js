@@ -1,6 +1,11 @@
 /* global DDP: true */
 /* global LockerFactory: true */
-/* global PackageUtilities: true */
+
+import { checkNpmVersions } from 'meteor/tmeasday:check-npm-versions';
+checkNpmVersions({
+  'package-utils': '^0.2.1'
+});
+const PackageUtilities = require('package-utils');
 
 LockerFactory = (function() {
 	var _lf = function LockerFactory() {};
