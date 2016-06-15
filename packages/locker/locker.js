@@ -3,9 +3,11 @@
 
 import { checkNpmVersions } from 'meteor/tmeasday:check-npm-versions';
 checkNpmVersions({
-  'package-utils': '^0.2.1'
+  'package-utils': '^0.2.1',
+  'underscore' : '^1.8.3',
 });
 const PackageUtilities = require('package-utils');
+const _ = require('underscore');
 
 LockerFactory = (function() {
 	var _lf = function LockerFactory() {};
@@ -192,7 +194,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 
 		if (typeof metadata !== "object") {
 			ERROR('[invalid-argument] metadata should be an object:', metadata);
-			throw new Meteor.Error('invalid-argument', 'metadata should be an object')
+			throw new Meteor.Error('invalid-argument', 'metadata should be an object');
 		}
 		INVALID_META_DATA_KEYS.forEach(function(key) {
 			if (metadata.hasOwnProperty(key)) {
