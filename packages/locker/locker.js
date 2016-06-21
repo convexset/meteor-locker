@@ -9,6 +9,9 @@ checkNpmVersions({
 const PackageUtilities = require('package-utils');
 const _ = require('underscore');
 
+import { Mongo } from 'meteor/mongo';
+
+
 LockerFactory = (function() {
 	var _lf = function LockerFactory() {};
 	var LF = new _lf();

@@ -1,6 +1,6 @@
 Package.describe({
 	name: 'convexset:locker',
-	version: '0.1.1_3',
+	version: '0.1.1_4',
 	summary: 'A package for providing locking functionality in Meteor Methods',
 	git: 'https://github.com/convexset/meteor-locker',
 	documentation: '../../README.md'
@@ -15,6 +15,7 @@ Package.onUse(function(api) {
 			'ecmascript', 'ejson',
 			'accounts-base',
 			'ddp',
+			'mongo',
 			'tmeasday:check-npm-versions@0.3.1'
 		],
 		'server');
