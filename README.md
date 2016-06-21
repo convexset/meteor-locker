@@ -153,9 +153,9 @@ Now, given a locker `Locker`...
 
 ### Publications
 
-Before talking about publication functionality, it is useful to provide an example of a subscription context which will be used for authentication and computing selectors for collection data.
+Before talking about publication functionality, it is useful to provide an example of a publication context which will be used for authentication and computing selectors for collection data.
 
-Here is an example of a subscription context (the `this` when a publication function is called during a subscription):
+Here is an example of a publication context (the `this` when a publication function is called during a subscription):
 ```javascript
 {
     _session: { /* Don't Worry About This */ },
@@ -206,20 +206,20 @@ Here is an example of a subscription context (the `this` when a publication func
 Given a locker `Locker`...
  - `Locker.makePublication(name, selector, authFunction)`: make a generic publication with authentication
    * `name`: the name of the publication
-   * `selector`: the selector on the lock collection; if a function is supplied, then it will be invoked with the subscription context as its argument to generate the selector at subscription time (default: `{}`)
+   * `selector`: the selector on the lock collection; if a function is supplied, then it will be invoked with the publication context as its argument to generate the selector at subscription time (default: `{}`)
      - e.g.: selecting the locks associated with the current user, `context => ({userId: context && context.userId})`
      - e.g.: selecting the locks associated with the current connection, `context => ({connectionId: context && context.connection && context.connection.id})`
-     - Note that the selector can be used to filter against metadata fields. For example, an "organization id" might be stored in a metadata field, and the selector can use user id information in the subscription context to find the current user's organization id, and now an administrative panel for releasing locks at an "organization level" can be built
-   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+     - Note that the selector can be used to filter against metadata fields. For example, an "organization id" might be stored in a metadata field, and the selector can use user id information in the publication context to find the current user's organization id, and now an administrative panel for releasing locks at an "organization level" can be built
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the publication context as an argument at subscription time (default: `() => true`)
  - `Locker.makeOwnLocksPublication(name, authFunction)`: publish locks 
    * `name`: the name of the publication
-   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the publication context as an argument at subscription time (default: `() => true`)
  - `Locker.makeCurrConnectionLocksPublication(name, authFunction)`: 
    * `name`: the name of the publication
-   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the publication context as an argument at subscription time (default: `() => true`)
  - `Locker.makeOwnCurrConnectionLocksPublication(name, authFunction)`: 
    * `name`: the name of the publication
-   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the subscription context as an argument at subscription time (default: `() => true`)
+   * `authFunction`: a function testing whether a subscriber is authorized to subscribe to the publication, it will be invoked the publication context as an argument at subscription time (default: `() => true`)
 
 Given that one can publish lock records, one question that might arise is what a lock record might look like. Here are some examples (don't mind the serialized date):
 ```javascript
