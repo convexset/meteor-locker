@@ -33,7 +33,7 @@ Have a look at the example app to see how to use the package.
 
 There is functionality to acquire a lock and hold on to it even after the Meteor method used to establish the lock terminates (`acquireLock`) and to release it later (`releaseLock`). There is functionality to wait for a lock, execute code once established, and release it once done in a Meteor method (`ifLockElse`).
 
-**(NOTE: Due to the way Meteor processes methods, now calling `this.unblock()` in a method will result in the blocking of a client's subsequent Meteor method calls when `ifLockElse` is used to wait for a lock to be acquired.)**
+**(NOTE: Due to the way Meteor processes methods, not calling `this.unblock()` in a method would result in the blocking of a client's subsequent Meteor method calls when `ifLockElse` is used to wait for a lock to be acquired.)**
 
 
 ## Install
