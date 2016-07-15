@@ -9,8 +9,6 @@ Unique "users" are derived from information about the current DDP connection. So
 
 As with mutexes that lock on abstract resources, nothing is stopping code from ignoring a failure to acquire a lock and proceed to use a resource anyway. However, since this package is a server-side package, there is a reasonable expectation that "civilized behaviour" can be ensured by the developer.
 
-**(NOTE: Due to the way Meteor processes methods, now calling `this.unblock()` in a method will result in blocking of a client's other Meteor method calls when `ifLockElse` is used to wait for a lock to be acquired.)**
-
 Have a look at the example app to see how to use the package.
 
 ## Table of Contents
@@ -20,6 +18,7 @@ Have a look at the example app to see how to use the package.
 
 
 - [Install](#install)
+- [Overview of Functionality](#overview-of-functionality)
 - [Usage](#usage)
   - [Creating a "Locker"](#creating-a-locker)
   - [Working With Locks](#working-with-locks)
@@ -28,6 +27,14 @@ Have a look at the example app to see how to use the package.
   - [Debug Mode](#debug-mode)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+
+## Overview of Functionality
+
+There is functionality to acquire a lock and hold on to it even after the Meteor method used to establish the lock terminates (`acquireLock`) and to release it later (`releaseLock`). There is functionality to wait for a lock, execute code once established, and release it once done in a Meteor method (`ifLockElse`).
+
+**(NOTE: Due to the way Meteor processes methods, now calling `this.unblock()` in a method will result in the blocking of a client's subsequent Meteor method calls when `ifLockElse` is used to wait for a lock to be acquired.)**
+
 
 ## Install
 
