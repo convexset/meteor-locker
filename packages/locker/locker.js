@@ -248,7 +248,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			context: {},
 			releaseOwnLock: false,
 			maxTrials: 1,
-			forceNoUnblock: false,
+			unblock: true,
 			retryIntervalInMs: 1000,
 			retryIntervalLinearBackOffIncrementInMs: 0,
 			retryIntervalExponentialBackOffExponentMultiplier: 0,
@@ -268,11 +268,11 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 				L.releaseOwnLock(name);
 			}
 			if (options.maxTrials > 1) {
-				if (forceNoUnblock) {
-					LOG(`[ifLockElse|${L.getLockerId()}] options.maxTrials (${options.maxTrials}) > 1... but not calling context.unblock() since forceNoUnblock=${forceNoUnblock}`);
-				} else {
-					LOG(`[ifLockElse|${L.getLockerId()}] Calling context.unblock() since options.maxTrials=${options.maxTrials} > 1...`);
+				if (options.unblock) {
+					LOG(`[ifLockElse|${L.getLockerId()}] Calling context.unblock() since options.maxTrials=${options.maxTrials} > 1 and options.unblock=${options.unblock}.`);
 					getContext().unblock();
+				} else {
+					LOG(`[ifLockElse|${L.getLockerId()}] options.maxTrials (${options.maxTrials}) > 1... but not calling context.unblock() since options.unblock=${options.unblock}`);
 				}
 			}
 			while (mostRecentTrial < options.maxTrials) {
@@ -310,6 +310,40 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			};
 		}
 	});
+
+	/*
+	// TODO: figure out whether this implementation makes sense
+	// commented out until thoughts on this API are sorted out
+
+	PackageUtilities.addImmutablePropertyFunction(L, "prepareIfLockElse", function prepareIfLockElse(options = {}) {
+		var _options = _.extend({}, options);
+		return function preparedLock(lockName, callback) {
+			return L.IfLockElse(lockName, _.extend({}, _options, {
+				lockAcquiredCallback: function() {
+					return callback.call(this, void 0, lockName);
+				},
+				lockNotAcquiredCallback: function() {
+					return callback.call(this, lockName, void 0);
+				}
+			}));
+		};
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "withSimpleSingleTryLock",
+		L.prepareIfLockElse()
+	);
+
+	PackageUtilities.addImmutablePropertyFunction(L, "withSimpleMultipleTryLock",
+		L.prepareIfLockElse({
+			// fails after (over) 10 sec...
+			// ... and does not unblock (dev. has to do that)
+			maxTrials: 25,
+			unblock: false,
+			retryIntervalInMs: 250,
+			retryIntervalLinearBackOffIncrementInMs: 10.83333
+		})
+	);
+	*/
 	//////////////////////////////////////////////////////////////////////
 
 
