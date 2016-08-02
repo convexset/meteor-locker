@@ -251,6 +251,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			releaseOwnLock: false,
 			maxTrials: 1,
 			unblock: true,
+			releaseLockOnException: true,
 			retryIntervalInMs: 1000,
 			retryIntervalLinearBackOffIncrementInMs: 0,
 			retryIntervalExponentialBackOffExponentMultiplier: 0,
@@ -317,8 +318,10 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 				)
 			};
 		} catch (e) {
-			// release lock first and then re-throw
-			L.releaseLock(name);
+			if (options.releaseLockOnException) {
+				// release lock first and then re-throw
+				L.releaseLock(name);
+			}
 			throw e;
 		}
 		return ret;

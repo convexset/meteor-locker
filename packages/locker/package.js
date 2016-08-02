@@ -1,7 +1,7 @@
 Package.describe({
 	// [validatis:stack]
 	name: 'convexset:locker',
-	version: '0.1.2_3',
+	version: '0.1.2_4',
 	summary: 'A package for providing locking functionality in Meteor Methods',
 	git: 'https://github.com/convexset/meteor-locker',
 	documentation: '../../README.md'

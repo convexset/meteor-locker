@@ -151,6 +151,7 @@ Now, given a locker `Locker`...
    * `releaseOwnLock`: whether to call `Locker.releaseOwnLock(name)` (default: `false`)
    * `maxTrials`: maximum number of attempts to acquire the lock; if greater than 1, the Meteor method will be [unblocked](http://docs.meteor.com/#/full/method_unblock) (default: `1`)
    * `unblock`: informs `ifLockElse` to "unblock" the method when `maxTrials` is greater than 1 (see the `maxTrials` parameter just above) (default: `true`)
+   * `releaseLockOnException`: releases lock on exception when `lockAcquiredCallback` is run (default: `true`)
    * `retryIntervalInMs`: the base interval (B) between retries in milliseconds (default: `1000`)
    * `retryIntervalLinearBackOffIncrementInMs`: the linear increment (L) for the retry time in milliseconds (default: `0`)
    * `retryIntervalExponentialBackOffExponentMultiplier`: the exponent (E) used to amplify the retry time *a la* [exponential back-off](https://en.wikipedia.org/wiki/Exponential_backoff) (default: `0`)
