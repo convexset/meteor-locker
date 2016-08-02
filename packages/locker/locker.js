@@ -311,19 +311,21 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		}
 	});
 
-	/*
-	// TODO: figure out whether this implementation makes sense
-	// commented out until thoughts on this API are sorted out
-
 	PackageUtilities.addImmutablePropertyFunction(L, "prepareIfLockElse", function prepareIfLockElse(options = {}) {
 		var _options = _.extend({}, options);
 		return function preparedLock(lockName, callback) {
 			return L.IfLockElse(lockName, _.extend({}, _options, {
 				lockAcquiredCallback: function() {
-					return callback.call(this, void 0, lockName);
+					return callback.call(this, void 0, {
+						lockAcquired: true,
+						name: lockName
+					});
 				},
 				lockNotAcquiredCallback: function() {
-					return callback.call(this, lockName, void 0);
+					return callback.call(this, {
+						lockAcquired: false,
+						name: lockName
+					}, void 0);
 				}
 			}));
 		};
@@ -343,7 +345,6 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			retryIntervalLinearBackOffIncrementInMs: 10.83333
 		})
 	);
-	*/
 	//////////////////////////////////////////////////////////////////////
 
 

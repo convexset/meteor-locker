@@ -154,7 +154,21 @@ Now, given a locker `Locker`...
    * `retryIntervalInMs`: the base interval (B) between retries in milliseconds (default: `1000`)
    * `retryIntervalLinearBackOffIncrementInMs`: the linear increment (L) for the retry time in milliseconds (default: `0`)
    * `retryIntervalExponentialBackOffExponentMultiplier`: the exponent (E) used to amplify the retry time *a la* [exponential back-off](https://en.wikipedia.org/wiki/Exponential_backoff) (default: `0`)
-   * Note: the retry time interval may be expressed as `B exp(E(t-1)) + (t-1)L` where `t` is the number of unsuccessful attempts
+   * **Note**: the retry time interval may be expressed as `B exp(E(t-1)) + (t-1)L` where `t` is the number of unsuccessful attempts
+ - `Locker.withSimpleSingleTryLock(name, callback)`: uses `Locker.ifLockElse(name, options)` with default options (except for `lockAcquiredCallback` and `lockNotAcquiredCallback`)
+   * **Note**: The callback is called **synchronously**.
+   * **Note**: The `callback` signature is in the traditional Node-style `function callback(error, result) {/* ... */}`; an object with keys `{name, lockAcquired}` (`lockAcquired` being a boolean) will be passed into the callback in the natural argument when the lock is acquired (`result`) and when it is not (`error`), with `undefined` being passed into the other argument slot.
+ - `Locker.withSimpleMultipleTryLock(name, callback)`: uses `Locker.ifLockElse(name, options)` with options:
+   * `maxTrials = 25`
+   * `unblock = false`: so the developer can choose whether or not to "unblock"
+   * `retryIntervalInMs = 250`
+   * `retryIntervalLinearBackOffIncrementInMs = 10.83333`
+   * **Note**: this results in retries over about 10 sec before a final failure
+   * **Note**: The callback is called **synchronously**.
+   * **Note**: The `callback` signature is in the traditional Node-style `function callback(error, result) {/* ... */}`; an object with keys `{name, lockAcquired}` (`lockAcquired` being a boolean) will be passed into the callback in the natural argument when the lock is acquired (`result`) and when it is not (`error`), with `undefined` being passed into the other argument slot.
+ - `Locker.prepareIfLockElse(options)`: prepares a function that effectively partially applies options to `IfLockElse` and returns a function with signature `function(name, callback)` that will work like `withSimpleSingleTryLock` and `withSimpleMultipleTryLock`.
+   * `options` defaults to `{}`
+   * **Note**: `withSimpleSingleTryLock` is precisely the result of calling this without any arguments.
  - `Locker.releaseOwnLock(name)`: release a lock with name `name` created by the same Meteor user (regardless of locker type; works even when locking by connection id)
  - `Locker.releaseAllOwnLocks()`: releases all locks created by the same Meteor user (regardless of locker type; works even when locking by connection id)
  - `Locker.releaseAllCurrentConnectionLocks()`: releases all locks created from the current connection (regardless of locker type)
