@@ -298,14 +298,6 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 					}
 				}
 			}
-			var ret = {
-				lockAcquired: true,
-				outcome: options.lockAcquiredCallback.call(
-					_.isFunction(options.context) ? options.context() : options.context
-				)
-			};
-			L.releaseLock(name);
-			return ret;
 		} catch (e) {
 			return {
 				lockAcquired: false,
@@ -314,6 +306,22 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 				)
 			};
 		}
+
+		// lock acquired: do stuff
+		var ret;
+		try {
+			ret = {
+				lockAcquired: true,
+				outcome: options.lockAcquiredCallback.call(
+					_.isFunction(options.context) ? options.context() : options.context
+				)
+			};
+		} catch (e) {
+			// release lock first and then re-throw
+			L.releaseLock(name);
+			throw e;
+		}
+		return ret;
 	});
 
 	PackageUtilities.addImmutablePropertyFunction(L, "prepareIfLockElse", function prepareIfLockElse(options = {}) {
