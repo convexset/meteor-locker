@@ -134,7 +134,7 @@ First and foremost, lock names are either of the following:
  - a non-empty array of such strings
 
 Now, given a locker `Locker`...
- -  `Locker.acquireLock(name, metadata, expiryInSec = null)` {
+ -  `Locker.acquireLock(name, metadata, expiryInSec)`
    * `name`: the name of the lock to acquire (see [above](#working-with-locks) for naming guidelines)
    * `metadata`: metadata to include in lock record (default: `{}`)
      + may contain key-value pairs of strings comprising only alphanumeric characters as well as `"-"` and `"_"`
@@ -150,6 +150,7 @@ Now, given a locker `Locker`...
    * `context`: the calling context of the above functions, if it is a function, the result of calling it with no arguments will be used (default: `{}`)
    * `releaseOwnLock`: whether to call `Locker.releaseOwnLock(name)` (default: `false`)
    * `maxTrials`: maximum number of attempts to acquire the lock; if greater than 1, the Meteor method will be [unblocked](http://docs.meteor.com/#/full/method_unblock) (default: `1`)
+   * `forceNoUnblock`: ensures that `ifLockElse` does not unblock the method (the developer can still do this elsewhere) (see the `maxTrials` parameter just above) (default: `false`)
    * `retryIntervalInMs`: the base interval (B) between retries in milliseconds (default: `1000`)
    * `retryIntervalLinearBackOffIncrementInMs`: the linear increment (L) for the retry time in milliseconds (default: `0`)
    * `retryIntervalExponentialBackOffExponentMultiplier`: the exponent (E) used to amplify the retry time *a la* [exponential back-off](https://en.wikipedia.org/wiki/Exponential_backoff) (default: `0`)

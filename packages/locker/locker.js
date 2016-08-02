@@ -248,6 +248,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 			context: {},
 			releaseOwnLock: false,
 			maxTrials: 1,
+			forceNoUnblock: false,
 			retryIntervalInMs: 1000,
 			retryIntervalLinearBackOffIncrementInMs: 0,
 			retryIntervalExponentialBackOffExponentMultiplier: 0,
@@ -267,8 +268,12 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 				L.releaseOwnLock(name);
 			}
 			if (options.maxTrials > 1) {
-				LOG('[ifLockElse|' + L.getLockerId() + '] Calling context.unblock() since options.maxTrials (' + options.maxTrials + ') > 1...');
-				getContext().unblock();
+				if (forceNoUnblock) {
+					LOG(`[ifLockElse|${L.getLockerId()}] options.maxTrials (${options.maxTrials}) > 1... but not calling context.unblock() since forceNoUnblock=${forceNoUnblock}`);
+				} else {
+					LOG(`[ifLockElse|${L.getLockerId()}] Calling context.unblock() since options.maxTrials=${options.maxTrials} > 1...`);
+					getContext().unblock();
+				}
 			}
 			while (mostRecentTrial < options.maxTrials) {
 				try {
