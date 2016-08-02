@@ -222,10 +222,12 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 
 		var ret;
 		try {
-			ret = collection.upsert({
+			var lockSelector = {
 				lockName: name,
 				lockerId: currLockerId
-			}, {
+			};
+			LOG('[acquireLock|' + currLockerId + '] Lock Selector:', lockSelector, "; Lock Data:", updater);
+			ret = collection.upsert(lockSelector, {
 				$set: updater
 			});
 		} catch (e) {
