@@ -256,6 +256,9 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 
 		LOG('[ifLockElse|' + L.getLockerId() + '] Lock Name: ' + name, '; Options:', options);
 
+		// check lock name and throw as necessary
+		toLockName(name);
+
 		if (options.maxTrials < 1) {
 			throw new Meteor.Error('invalid-argument', 'options.maxTrials');
 		}

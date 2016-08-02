@@ -1,0 +1,27 @@
+{
+  "name": "locker",
+  "version": "1.0.0",
+  "description": "A package for providing locking functionality in Meteor Methods. Mutual exclusion (mutex) locks are acquired by \"users\" on \"resources\" (actually strings), and this works fine with `this.unblock()` in Meteor Methods.",
+  "main": "index.js",
+  "directories": {
+    "example": "example"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/convexset/meteor-locker.git"
+  },
+  "author": "Jeremy Chen <convexset@gmail.com> (https://github.com/convexset/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/convexset/meteor-locker/issues"
+  },
+  "homepage": "https://github.com/convexset/meteor-locker#readme",
+  "dependencies": {
+    "meteor-node-stubs": "^0.2.3",
+    "package-utils": "^0.2.1",
+    "underscore": "^1.8.3"
+  }
+}
