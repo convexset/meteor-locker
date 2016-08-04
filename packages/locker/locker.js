@@ -317,6 +317,7 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 					_.isFunction(options.context) ? options.context() : options.context
 				)
 			};
+			L.releaseLock(name);
 		} catch (e) {
 			if (options.releaseLockOnException) {
 				// release lock first and then re-throw
