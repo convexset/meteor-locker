@@ -71,7 +71,9 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 	//////////////////////////////////////////////////////////////////////
 	// collection stuff
 	//////////////////////////////////////////////////////////////////////
-	var collection = new Mongo.Collection(collectionName);
+	var collection = new Mongo.Collection(collectionName, {
+		defineMutationMethods: false
+	});
 	collection._ensureIndex({
 		expiryMarker: 1
 	}, {
