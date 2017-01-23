@@ -386,11 +386,25 @@ function makeLocker(name, collectionName, contextToLockerIdFunction, defaultExpi
 		});
 	});
 
+	PackageUtilities.addImmutablePropertyFunction(L, "releaseAllLocksByUser", function releaseAllLocksByUser(userId) {
+		LOG('[releaseAllLocksByUser]', userId);
+		return !!collection.remove({
+			userId: userId
+		});
+	});
+
 	PackageUtilities.addImmutablePropertyFunction(L, "releaseAllCurrentConnectionLocks", function releaseAllCurrentConnectionLocks() {
 		LOG('[releaseAllCurrentConnectionLocks]');
 		var info = L.getUserIdAndConnectionId();
 		return !!collection.remove({
 			connectionId: info && info.connectionId
+		});
+	});
+
+	PackageUtilities.addImmutablePropertyFunction(L, "releaseAllLocksByConnection", function releaseAllLocksByConnection(connectionId) {
+		LOG('[releaseAllLocksByConnection]', connectionId);
+		return !!collection.remove({
+			connectionId: connectionId
 		});
 	});
 
